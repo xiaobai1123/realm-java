@@ -12,7 +12,7 @@
         android:minSdkVersion="9"
         android:targetSdkVersion="22"/>
 
-    <application>
+    <application android:largeHeap="true">
         <uses-library android:name="android.test.runner"/>
         <service
             android:name=".services.RemoteProcessService"

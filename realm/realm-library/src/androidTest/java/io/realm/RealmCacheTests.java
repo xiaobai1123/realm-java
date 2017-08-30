@@ -27,11 +27,16 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.realm.entities.AllTypes;
+import io.realm.entities.PrimaryKeyAsString;
 import io.realm.entities.StringOnly;
 import io.realm.exceptions.RealmFileException;
 import io.realm.rule.RunInLooperThread;
@@ -544,5 +549,158 @@ public class RealmCacheTests {
                 realm.close();
             }
         }
+    }
+
+    public static class RandomString {
+
+        /**
+         * Generate a random string.
+         */
+        public String nextString() {
+            for (int idx = 0; idx < buf.length; ++idx)
+                buf[idx] = symbols[random.nextInt(symbols.length)];
+            return new String(buf);
+        }
+
+        public static final String upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        public static final String lower = upper.toLowerCase(Locale.ROOT);
+
+        public static final String digits = "0123456789";
+
+        public static final String alphanum = upper + lower + digits;
+
+        private final Random random;
+
+        private final char[] symbols;
+
+        private final char[] buf;
+
+        public RandomString(int length, Random random, String symbols) {
+            if (length < 1) throw new IllegalArgumentException();
+            if (symbols.length() < 2) throw new IllegalArgumentException();
+            this.random = Objects.requireNonNull(random);
+            this.symbols = symbols.toCharArray();
+            this.buf = new char[length];
+        }
+
+        /**
+         * Create an alphanumeric string generator.
+         */
+        public RandomString(int length, Random random) {
+            this(length, random, alphanum);
+        }
+
+        /**
+         * Create an alphanumeric strings from a secure generator.
+         */
+        public RandomString(int length) {
+            this(length, new SecureRandom());
+        }
+
+        /**
+         * Create session identifiers.
+         */
+        public RandomString() {
+            this(21);
+        }
+
+    }
+
+    private void read(RealmConfiguration config) {
+        Realm realm = Realm.getInstance(config);
+        RealmResults<PrimaryKeyAsString> results = realm.where(PrimaryKeyAsString.class).findAll();
+        while (true)  {
+            realm.refresh();
+            for (PrimaryKeyAsString primaryKeyAsString: results) {
+                String tmpStr = primaryKeyAsString.getName();
+            }
+        }
+    }
+
+    private void write(RealmConfiguration config) {
+        Realm realm = Realm.getInstance(config);
+        while (true)  {
+            Random random = new Random();
+            int length = random.nextInt(4096) + 1;
+            RandomString randomString= new RandomString(length);
+            realm.beginTransaction();
+            String name = randomString.nextString();
+            PrimaryKeyAsString primaryKeyAsString = new PrimaryKeyAsString(name);
+            //PrimaryKeyAsString primaryKeyAsString = realm.createObject(PrimaryKeyAsString.class, randomString.nextString());
+            primaryKeyAsString = realm.copyToRealmOrUpdate(primaryKeyAsString);
+            String tmp = primaryKeyAsString.getName();
+            realm.commitTransaction();
+        }
+    }
+
+    private void delete(RealmConfiguration config) {
+        Realm realm = Realm.getInstance(config);
+        while (true)  {
+            realm.beginTransaction();
+            PrimaryKeyAsString primaryKeyAsString = realm.where(PrimaryKeyAsString.class).findFirst();
+            if (primaryKeyAsString == null) {
+                realm.commitTransaction();
+                continue;
+            }
+            String tmp = primaryKeyAsString.getName();
+            primaryKeyAsString.deleteFromRealm();
+            realm.commitTransaction();
+        }
+    }
+
+    private void startReadThread(final RealmConfiguration config, int count) {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                read(config);
+            }
+        };
+
+        for (int i = 0; i < count; i++) {
+            new Thread(runnable).start();
+        }
+    }
+
+    private void startWriteThread(final RealmConfiguration config, int count) {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                write(config);
+            }
+        };
+
+        for (int i = 0; i < count; i++) {
+            new Thread(runnable).start();
+        }
+    }
+
+    private void startDeleteThread(final RealmConfiguration config, int count) {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                delete(config);
+            }
+        };
+
+        for (int i = 0; i < count; i++) {
+            new Thread(runnable).start();
+        }
+    }
+
+    @Test
+    public void brutalTest() {
+        RealmConfiguration config1 = configFactory.createConfiguration("test1");
+        RealmConfiguration config2 = configFactory.createConfiguration("test2");
+
+        startReadThread(config1, 20);
+        startReadThread(config2, 20);
+
+        startWriteThread(config1, 10);
+        startWriteThread(config2, 5);
+
+        startDeleteThread(config1, 10);
+        startDeleteThread(config2, 10);
+        while (true);
     }
 }
