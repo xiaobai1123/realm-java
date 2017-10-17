@@ -17,8 +17,10 @@
 package io.realm.processor;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -124,7 +126,7 @@ import io.realm.annotations.RealmModule;
         "io.realm.annotations.RealmModule",
         "io.realm.annotations.Required"
 })
-@SupportedOptions(value = {"realm.suppressWarnings"})
+@SupportedOptions(value = {"realm.suppressWarnings", "realm.ignoreKotlinNullability"})
 public class RealmProcessor extends AbstractProcessor {
 
     // Don't consume annotations. This allows 3rd party annotation processors to run.
@@ -168,6 +170,18 @@ public class RealmProcessor extends AbstractProcessor {
         }
 
         return CONSUME_ANNOTATIONS;
+    }
+
+    @Override
+    public Set<String> getSupportedOptions() {
+        Set<String> options = super.getSupportedOptions();
+        options = new HashSet<String>(options);
+        //Utils.note(String.format(Locale.US, "before getSupportedOptions" + options.toString()));
+        options.add("realm.suppressWarnings");
+        options.add("realm.ignoreKotlinNullability");
+        //Utils.note(String.format(Locale.US, "after getSupportedOptions" + options.toString()));
+
+        return Collections.unmodifiableSet(options);
     }
 
     // Create all proxy classes

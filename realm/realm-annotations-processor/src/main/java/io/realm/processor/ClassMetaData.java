@@ -71,6 +71,8 @@ public class ClassMetaData {
     private final Types typeUtils;
     private final Elements elements;
 
+    private final boolean ignoreKotlinNullability;
+
     public ClassMetaData(ProcessingEnvironment env, TypeMirrors typeMirrors, TypeElement clazz) {
         this.classType = clazz;
         this.className = clazz.getSimpleName().toString();
@@ -111,6 +113,11 @@ public class ClassMetaData {
                 }
             }
         }
+
+
+        ignoreKotlinNullability = Boolean.valueOf(
+                env.getOptions().getOrDefault("realm.ignoreKotlinNullability", "false"));
+        Utils.note(String.format(Locale.US, "realmIgnoreKotlinNullability: " + env.getOptions()));
     }
 
     @Override
@@ -522,6 +529,10 @@ public class ClassMetaData {
     private boolean isRequiredField(VariableElement field) {
         if (hasRequiredAnnotation(field)) {
             return true;
+        }
+
+        if (ignoreKotlinNullability) {
+            return false;
         }
 
         // Kotlin uses the `org.jetbrains.annotations.NotNull` annotation to mark non-null fields.

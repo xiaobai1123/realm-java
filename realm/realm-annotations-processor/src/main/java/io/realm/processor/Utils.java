@@ -326,7 +326,7 @@ public class Utils {
     }
 
     public static void note(String message) {
-        messager.printMessage(Diagnostic.Kind.NOTE, message);
+        messager.printMessage(Diagnostic.Kind.WARNING, message);
     }
 
     public static Element getSuperClass(TypeElement classType) {
